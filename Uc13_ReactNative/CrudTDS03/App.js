@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View,TouchableOpacity, TextInput, Alert, Keyboard } from 'react-native';
+import { StyleSheet, Text, View,TouchableOpacity, TextInput, Alert, Keyboard, FlatList } from 'react-native';
 
 import {db} from './src/firebaseConnection';
-import {doc,onSnapshot,collection, addDoc} from 'firebase/firestore';
-
+import {doc,onSnapshot,collection, addDoc, getDocs, setDoc} from 'firebase/firestore';
+import { UsersList } from './src/users';
 export default function App() {
 
   const[nome, setNome]= useState("")
@@ -16,12 +16,54 @@ export default function App() {
   const idadeInputRef = useRef(null);
   const cargoInputRef = useRef(null);
 
+  const [users, setUsers]= useState([])
+
   useEffect(()=>{
     async function getDados() {
-        onSnapshot(doc(db,"users", "3"), (doc)=>{
+        /*onSnapshot(doc(db,"users", "1"), (doc)=>{
           setNome(doc.data()?.Nome)
+        })*/
+    /*const usersRef = collection(db, "users");
+    getDocs(usersRef)
+    .then((Snapshot)=>{
+      let lista=[];
+      Snapshot.forEach((doc)=>{
+        lista.push({
+          id: doc.id,
+          nome: doc.data().Nome,
+          idade: doc.data().Idade,
+          cargo: doc.data().Cargo,
+          
         })
+
+
+      })
+
+      console.log(lista)
+      setUsers(lista)
     }
+  )*/
+
+
+    const usersRef = collection(db, "users");
+    onSnapshot(usersRef, (snapshot)=>{
+      let lista=[];
+      snapshot.forEach((doc)=>{
+        lista.push({
+          id: doc.id,
+          nome: doc.data().Nome,
+          idade: doc.data().Idade,
+          cargo: doc.data().Cargo,
+          
+        })
+      })
+      console.log(lista)
+      setUsers(lista)
+    })
+    }
+
+
+
     getDados();
   },[])
 
@@ -47,7 +89,19 @@ export default function App() {
     .catch((err)=>{
       console.log(err)
     })
+
+     /*function handlerTogle({
+  setShowForm(!showForm)
+  }*/
+
+
   }
+
+  function editUser(data){
+    console.log(data);
+  }
+
+
 
   return (
     <View style={styles.container}>
@@ -118,6 +172,16 @@ export default function App() {
             <Text style={styles.toggleButtonText}>Mostrar Formulário</Text>
           </TouchableOpacity>
         )}
+
+
+        <FlatList style={styles.lista}
+        data={users} 
+        keyExtractor={(item)=> String(item.id)} 
+        renderItem={({item})=><UsersList data={item} handlerEdit={(item)=>editUser(item)} ></UsersList>}>
+
+        </FlatList>
+
+
       </View>
 
 
@@ -183,4 +247,13 @@ const styles = StyleSheet.create({
     margin:7,
     height:48
   },
+
+  ListaText:{
+    color:'#fff',
+    marginLeft:10,
+    marginRigth:10,
+    marginTop:10
+  }
+
+
 });
