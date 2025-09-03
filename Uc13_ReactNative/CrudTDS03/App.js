@@ -1,259 +1,134 @@
-import { useEffect, useState, useRef } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View,TouchableOpacity, TextInput, Alert, Keyboard, FlatList } from 'react-native';
+import { useState } from 'react';
+import React from 'react';
+import { SafeAreaView, StyleSheet, StatusBar, TextInput, Text, TouchableOpacity } from 'react-native';
+import {auth} from './src/firebaseConnection';
 
-import {db} from './src/firebaseConnection';
-import {doc,onSnapshot,collection, addDoc, getDocs, setDoc} from 'firebase/firestore';
-import { UsersList } from './src/users';
+import { FormUser } from './src/formUser';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+
 export default function App() {
 
-  const[nome, setNome]= useState("")
-  const[cargo, setCargo]= useState("")
-  const[idade, setIdade]= useState("")
-
-  const [formVisible, setFormVisible] = useState(false);
-
-  const idadeInputRef = useRef(null);
-  const cargoInputRef = useRef(null);
-
-  const [users, setUsers]= useState([])
-
-  useEffect(()=>{
-    async function getDados() {
-        /*onSnapshot(doc(db,"users", "1"), (doc)=>{
-          setNome(doc.data()?.Nome)
-        })*/
-    /*const usersRef = collection(db, "users");
-    getDocs(usersRef)
-    .then((Snapshot)=>{
-      let lista=[];
-      Snapshot.forEach((doc)=>{
-        lista.push({
-          id: doc.id,
-          nome: doc.data().Nome,
-          idade: doc.data().Idade,
-          cargo: doc.data().Cargo,
-          
-        })
+const [email,setEmail]= useState("")
+const [password,setPassword]= useState("")
+const [authUser, setAuthUser] = useState(null)
 
 
-      })
+async function handlerCreateUser(){
+  const user = await createUserWithEmailAndPassword (auth,email,password)
+  alert("Usuario Criado")
+  setEmail=""
+  setPassword=""
+  // console.log(user)
 
-      console.log(lista)
-      setUsers(lista)
-    }
-  )*/
+}
+// async function handlerLogin() {
+//   const user = await createUserWithEmailAndPassword (auth,email,password)
+//   alert("Usuario Logado")
+//   setEmail=""
+//   setPassword=""
+//   setAuthUser({
+//     email: user.user.email,
+//     uid: user.user.uid
+//   })
+// console.log(user)
+  
 
+function handlerLogin() {
+ signInWithEmailAndPassword (auth,email,password)
+.then((user)=>{
+  console.log(user)
+  setAuthUser({
+  email: user.user.email,
+  uid: user.user.uid
 
-    const usersRef = collection(db, "users");
-    onSnapshot(usersRef, (snapshot)=>{
-      let lista=[];
-      snapshot.forEach((doc)=>{
-        lista.push({
-          id: doc.id,
-          nome: doc.data().Nome,
-          idade: doc.data().Idade,
-          cargo: doc.data().Cargo,
-          
-        })
-      })
-      console.log(lista)
-      setUsers(lista)
-    })
-    }
-
-
-
-    getDados();
-  },[])
-
-  async function handlerRegistrer() {
-    if(nome.trim() === '' || idade.trim() === '' || cargo.trim() === ''){
-      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
-      return; 
-    }
-    
-    Keyboard.dismiss();
-    
-    await addDoc(collection(db, "users"),{
-      Nome: nome,
-      Idade: idade,
-      Cargo: cargo
-    })
-    .then(()=>{
-      console.log("Cadastrado com Sucesso")
-      setNome('');
-      setIdade('');
-      setCargo('');
-    })
-    .catch((err)=>{
-      console.log(err)
-    })
-
-     /*function handlerTogle({
-  setShowForm(!showForm)
-  }*/
-
-
+   })
+  
+  setEmail("")
+  setPassword("")
+})
+.catch((err)=>{
+  console.log(err.code)
+    if(err.code === 'auth/missing-password'){
+    alert("A senha é obrigatória")
   }
 
-  function editUser(data){
-    console.log(data);
-  }
+ })
 
+}
 
 
   return (
-    <View style={styles.container}>
-      
+    <SafeAreaView style={styles.container}>
+      <StatusBar backgroundColor="#e91b1bff" barStyle="light-content" />
+
+      {/* <FormUser /> */}
+
+      {authUser && <Text style={styles.input}>Usuario Logado: {authUser.email}</Text>}
+  
+
+      <Text style={styles.input}>E-mail:</Text>
+      <TextInput style={styles.txtinput} placeholder='Digite seu e-mail'
+      value={email} onChangeText={(text)=>setEmail(text)}
+      ></TextInput>     
+
+      <Text style={styles.input}>Senha:</Text>
+      <TextInput style={styles.txtinput} placeholder='Digite sua senha'
+      value={password} onChangeText={(text)=>setPassword(text)} secureTextEntry={true}
+      ></TextInput>
 
 
-      {formVisible && (
-        <>
-          <Text style={styles.nome}> Cadastro</Text>
+      <TouchableOpacity  style={styles.button} onPress={handlerLogin}>
+      <Text style={styles.buttonText}>Criar Login</Text>
+      </TouchableOpacity>
 
-          <Text style={styles.label}>Nome</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="Digite seu Nome (só letras)" 
-            value={nome} 
-            onChangeText={(text)=>setNome(text)}
-            returnKeyType="next"
-            onSubmitEditing={() => idadeInputRef.current.focus()}
-            blurOnSubmit={false}
-          />
-
-          <Text style={styles.label}>Idade</Text>
-          <TextInput 
-            ref={idadeInputRef}
-            style={styles.input} 
-            placeholder="Digite sua Idade (só numeros)" 
-            value={idade} 
-            onChangeText={(text)=>setIdade(text)} 
-            keyboardType="numeric"
-            returnKeyType="next"
-            onSubmitEditing={() => cargoInputRef.current.focus()}
-            blurOnSubmit={false}
-          />
-
-          <Text style={styles.label}>Cargo</Text>
-          <TextInput 
-            ref={cargoInputRef}
-            style={styles.input} 
-            placeholder="Digite seu Cargo (só letras)" 
-            value={cargo} 
-            onChangeText={(text)=>setCargo(text)}
-            returnKeyType="done"
-            onSubmitEditing={handlerRegistrer}
-          />
-
-          <TouchableOpacity style={styles.button} onPress={handlerRegistrer} >
-            <Text style={styles.buttonText}>Adicionar</Text>
-          </TouchableOpacity>
-        </>
-      )}
+      <TouchableOpacity  style={styles.button} onPress={handlerCreateUser}>
+        <Text style={styles.buttonText}>Criar uma conta</Text>
+      </TouchableOpacity>
 
 
-      <View style={styles.toggleContainer}>
-        {formVisible ? (
-          // Se formVisible for TRUE, mostra o botão de ESCONDER
-          <TouchableOpacity 
-            style={[styles.toggleButton, {backgroundColor: '#e74c3c'}]} // Botão vermelho
-            onPress={() => setFormVisible(false)}
-          >
-            <Text style={styles.toggleButtonText}>Esconder Formulário</Text>
-          </TouchableOpacity>
-        ) : (
-          // Se formVisible for FALSE, mostra o botão de MOSTRAR
-          <TouchableOpacity 
-            style={[styles.toggleButton, {backgroundColor: '#2ecc71'}]} // Botão verde
-            onPress={() => setFormVisible(true)}
-          >
-            <Text style={styles.toggleButtonText}>Mostrar Formulário</Text>
-          </TouchableOpacity>
-        )}
-
-
-        <FlatList style={styles.lista}
-        data={users} 
-        keyExtractor={(item)=> String(item.id)} 
-        renderItem={({item})=><UsersList data={item} handlerEdit={(item)=>editUser(item)} ></UsersList>}>
-
-        </FlatList>
-
-
-      </View>
-
-
-
-    </View>
-
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex:1,
-    backgroundColor: '#000',
-    paddingHorizontal: 10,
-    paddingTop:'28'
+    flex: 1,
+    backgroundColor: '#090909ff',
   },
-  toggleContainer: {
-    // Este container agora só centraliza o botão que estiver ativo
-    marginBottom: 20,
-    marginTop: 20,
-    alignItems: 'center', 
+
+  input:{
+    marginTop:25,
+    marginLeft:1,
+    marginRight:10,
+    borderWidth:1,
+    padding:5,
+    fontSize:18,
+    color:'white'
+
   },
-  toggleButton: {
-    padding: 12, // Aumentei um pouco o padding
-    borderRadius: 28,
-    width: '80%', // Ocupa uma boa parte da tela
-    alignItems: 'center',
+
+  txtinput:{
+    fontSize:18,
+    marginLeft:5,
+    borderWidth:1,
+     borderRadius:23,
+    color:'green',
+    backgroundColor: '#303030ff',
+
   },
-  toggleButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+
+  button:{
+    backgroundColor:'#323030ff',
+    marginRight:10,
+    marginLeft:10,
+    marginTop:20,
+    padding:10,
+    borderRadius:23,
   },
-  nome:{
-    color:"#fff",
-    margin:5,
+
+  buttonText:{
+    color:'#f7f6f6ff',
     textAlign:'center'
   },
-  label: {
-    color: '#fff',
-    marginLeft: 8,
-    marginBottom: 5,
-  },
-  button:{
-    backgroundColor:"#fff",
-    alignItems:'center',
-    marginTop:'20',
-    borderRadius:20,
-    margin:5
-  },
-  buttonText:{
-    padding:10,
-    color:'#000',
-  },
-  input: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 30,
-    padding: 15,
-    fontSize: 16,
-    marginBottom: 20,
-    margin:7,
-    height:48
-  },
-
-  ListaText:{
-    color:'#fff',
-    marginLeft:10,
-    marginRigth:10,
-    marginTop:10
-  }
-
 
 });
