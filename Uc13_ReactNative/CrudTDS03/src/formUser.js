@@ -1,300 +1,154 @@
-import { useEffect, useState, useRef } from 'react';
-import { StyleSheet, Text, View,TouchableOpacity, TextInput, Alert, Keyboard, FlatList } from 'react-native';
-import {db} from '../src/firebaseConnection';
-import {doc,onSnapshot,collection, addDoc, getDocs, setDoc, updateDoc} from 'firebase/firestore';
-import { UsersList } from '../src/users';
-export function FormUser() {
 
-  const[nome, setNome]= useState("")
-  const[cargo, setCargo]= useState("")
-  const[idade, setIdade]= useState("")
+import React, { useEffect, useState, useRef } from 'react';
+import { StyleSheet, Text, View,TouchableOpacity, TextInput, Alert, Keyboard, FlatList, SafeAreaView,StatusBar } from 'react-native';
+import { db } from './firebaseConnection'; // Caminho corrigido
+import { onSnapshot, collection, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { UsersList } from './users'; // Caminho corrigido
 
+// Recebe 'handleLogout' como uma prop do App.js
+export function FormUser({ handleLogout }) {
+  const [nome, setNome] = useState("");
+  const [cargo, setCargo] = useState("");
+  const [idade, setIdade] = useState("");
   const [formVisible, setFormVisible] = useState(false);
-  const [isEditing, setIsEditing] = useState()
-
+  const [isEditing, setIsEditing] = useState(null); // Usar null como valor inicial
   const idadeInputRef = useRef(null);
   const cargoInputRef = useRef(null);
+  const [users, setUsers] = useState([]);
 
-  const [users, setUsers]= useState([])
-
-  useEffect(()=>{
-    async function getDados() {
-        /*onSnapshot(doc(db,"users", "1"), (doc)=>{
-          setNome(doc.data()?.Nome)
-        })*/
-    /*const usersRef = collection(db, "users");
-    getDocs(usersRef)
-    .then((Snapshot)=>{
-      let lista=[];
-      Snapshot.forEach((doc)=>{
-        lista.push({
-          id: doc.id,
-          nome: doc.data().Nome,
-          idade: doc.data().Idade,
-          cargo: doc.data().Cargo,
-          
-        })
-
-
-      })
-
-      console.log(lista)
-      setUsers(lista)
-    }
-  )*/
-
-
+  useEffect(() => {
     const usersRef = collection(db, "users");
-    onSnapshot(usersRef, (snapshot)=>{
-      let lista=[];
-      snapshot.forEach((doc)=>{
+    const unsub = onSnapshot(usersRef, (snapshot) => {
+      let lista = [];
+      snapshot.forEach((doc) => {
         lista.push({
           id: doc.id,
           nome: doc.data().Nome,
           idade: doc.data().Idade,
           cargo: doc.data().Cargo,
-          
-        })
-      })
-      console.log(lista)
-      setUsers(lista)
-    })
-    }
-
-
-
-    getDados();
-  },[])
-
-  async function handlerRegistrer() {
-    if(nome.trim() === '' || idade.trim() === '' || cargo.trim() === ''){
-      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
-      return; 
-    }
-    
-    Keyboard.dismiss();
-    
-    await addDoc(collection(db, "users"),{
-      Nome: nome,
-      Idade: idade,
-      Cargo: cargo
-    })
-    .then(()=>{
-      console.log("Cadastrado com Sucesso")
-      setNome('');
-      setIdade('');
-      setCargo('');
-    })
-    .catch((err)=>{
-      console.log(err)
-      
-    })
-
-     /*function handlerTogle({
-  setShowForm(!showForm)
-  }*/
-
-
-  }
-
-  function editUser(data){
-    //console.log(data);
-    setNome(data.nome)
-    setIdade(data.idade)
-    setCargo(data.cargo)
-    setIsEditing(data.id)
-    setFormVisible(true)
-  }
-
-  async function handlerEditUser(){
-    const docRef = doc(db,'users',isEditing )
-    await updateDoc (docRef,{
-      Nome:nome,
-      Idade:idade,
-      Cargo:cargo
-    })
-
-        .then(() => {
-      console.log("Usuário atualizado com sucesso!");
-    })
-    .catch((err) => {
-      console.log("Erro ao atualizar: ", err);
+        });
+      });
+      setUsers(lista);
     });
+    return () => unsub(); // Desliga o listener ao sair da tela
+  }, []);
 
-    setIsEditing("")
-    setCargo("")
-    setIdade("")
-    setNome("")
-    
-    
+  function resetForm() {
+    setNome('');
+    setIdade('');
+    setCargo('');
+    setIsEditing(null);
+    Keyboard.dismiss();
+    setFormVisible(false);
   }
 
+  async function handlerSubmit() {
+    if (nome.trim() === '' || idade.trim() === '' || cargo.trim() === '') {
+      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
+      return;
+    }
+    
+    // Se isEditing tiver um ID, estamos editando.
+    if (isEditing) {
+      const docRef = doc(db, 'users', isEditing);
+      await updateDoc(docRef, {
+        Nome: nome,
+        Idade: idade,
+        Cargo: cargo
+      });
+    } else {
+      // Senão, estamos adicionando um novo.
+      await addDoc(collection(db, "users"), {
+        Nome: nome,
+        Idade: idade,
+        Cargo: cargo
+      });
+    }
 
+    resetForm();
+  }
+
+  function handleEdit(data) {
+    setNome(data.nome);
+    setIdade(data.idade);
+    setCargo(data.cargo);
+    setIsEditing(data.id);
+    setFormVisible(true);
+  }
 
   return (
-    <View style={styles.container}>
-      
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Gerenciar Usuários</Text>
+        <TouchableOpacity onPress={handleLogout}>
+          <Text style={styles.logoutText}>Sair</Text>
+        </TouchableOpacity>
+      </View>
 
+      <TouchableOpacity
+        style={[styles.toggleButton, { backgroundColor: formVisible ? '#e74c3c' : '#2ecc71' }]}
+        onPress={() => { setFormVisible(!formVisible); if (isEditing) resetForm(); }}
+      >
+        <Text style={styles.toggleButtonText}>{formVisible ? 'Fechar Formulário' : 'Adicionar Usuário'}</Text>
+      </TouchableOpacity>
 
       {formVisible && (
-        <>
-          <Text style={styles.nome}> Cadastro</Text>
-
-          <Text style={styles.label}>Nome</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="Digite seu Nome (só letras)" 
-            value={nome} 
-            onChangeText={(text)=>setNome(text)}
+        <View>
+          <Text style={styles.formTitle}>{isEditing ? 'Editando Usuário' : 'Novo Cadastro'}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Nome do usuário"
+            value={nome}
+            onChangeText={setNome}
             returnKeyType="next"
             onSubmitEditing={() => idadeInputRef.current.focus()}
-            blurOnSubmit={false}
           />
-
-          <Text style={styles.label}>Idade</Text>
-          <TextInput 
+          <TextInput
             ref={idadeInputRef}
-            style={styles.input} 
-            placeholder="Digite sua Idade (só numeros)" 
-            value={idade} 
-            onChangeText={(text)=>setIdade(text)} 
+            style={styles.input}
+            placeholder="Idade"
+            value={idade}
+            onChangeText={setIdade}
             keyboardType="numeric"
             returnKeyType="next"
             onSubmitEditing={() => cargoInputRef.current.focus()}
-            blurOnSubmit={false}
           />
-
-          <Text style={styles.label}>Cargo</Text>
-          <TextInput 
+          <TextInput
             ref={cargoInputRef}
-            style={styles.input} 
-            placeholder="Digite seu Cargo (só letras)" 
-            value={cargo} 
-            onChangeText={(text)=>setCargo(text)}
+            style={styles.input}
+            placeholder="Cargo"
+            value={cargo}
+            onChangeText={setCargo}
             returnKeyType="done"
-            onSubmitEditing={handlerRegistrer}
+            onSubmitEditing={handlerSubmit}
           />
-
-          {isEditing !=""?(
-            <TouchableOpacity style={styles.button} onPress={handlerEditUser} >
-            <Text style={styles.buttonText}>Editar</Text>
+          <TouchableOpacity style={styles.button} onPress={handlerSubmit}>
+            <Text style={styles.buttonText}>{isEditing ? 'Salvar Alterações' : 'Adicionar'}</Text>
           </TouchableOpacity>
-          ):(
-             <TouchableOpacity style={styles.button} onPress={handlerRegistrer} >
-            <Text style={styles.buttonText}>Adicionar</Text>
-          </TouchableOpacity>
+        </View>
+      )}
 
-          )}
-        </>
-
-
-
-          )}
- 
-
-      
-
-
-      <View style={styles.toggleContainer}>
-        {formVisible ? (
-          // Se formVisible for TRUE, mostra o botão de ESCONDER
-          <TouchableOpacity 
-            style={[styles.toggleButton, {backgroundColor: '#e74c3c'}]} // Botão vermelho
-            onPress={() => setFormVisible(false)}
-          >
-            <Text style={styles.toggleButtonText}>Esconder Formulário</Text>
-          </TouchableOpacity>
-        ) : (
-          // Se formVisible for FALSE, mostra o botão de MOSTRAR
-          <TouchableOpacity 
-            style={[styles.toggleButton, {backgroundColor: '#2ecc71'}]} // Botão verde
-            onPress={() => setFormVisible(true)}
-          >
-            <Text style={styles.toggleButtonText}>Mostrar Formulário</Text>
-          </TouchableOpacity>
-        )}
-
-
-        <FlatList style={styles.lista}
-        data={users} 
-        keyExtractor={(item)=> String(item.id)} 
-        renderItem={({item})=><UsersList data={item} handlerEdit={(item)=>editUser(item)} ></UsersList>}>
-
-        </FlatList>
-
-
-      </View>
-
-
-
-    </View>
-
+      <FlatList
+        style={styles.lista}
+        data={users}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={({ item }) => <UsersList data={item} handlerEdit={handleEdit} />}
+        showsVerticalScrollIndicator={false}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex:1,
-    backgroundColor: '#000',
-    paddingHorizontal: 10,
-    paddingTop:'28'
-  },
-  toggleContainer: {
-    // Este container agora só centraliza o botão que estiver ativo
-    marginBottom: 20,
-    marginTop: 20,
-    alignItems: 'center', 
-  },
-  toggleButton: {
-    padding: 12, // Aumentei um pouco o padding
-    borderRadius: 28,
-    width: '80%', // Ocupa uma boa parte da tela
-    alignItems: 'center',
-  },
-  toggleButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  nome:{
-    color:"#fff",
-    margin:5,
-    textAlign:'center'
-  },
-  label: {
-    color: '#fff',
-    marginLeft: 8,
-    marginBottom: 5,
-  },
-  button:{
-    backgroundColor:"#fff",
-    alignItems:'center',
-    marginTop:'20',
-    borderRadius:20,
-    margin:5
-  },
-  buttonText:{
-    padding:10,
-    color:'#000',
-  },
-  input: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 30,
-    padding: 15,
-    fontSize: 16,
-    marginBottom: 20,
-    margin:7,
-    height:48
-  },
-
-  ListaText:{
-    color:'#fff',
-    marginLeft:10,
-    marginRigth:10,
-    marginTop:10
-  }
-
-
+  container: { flex: 1, backgroundColor: '#000', padding: 15, paddingTop: StatusBar.currentHeight },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  headerTitle: { color: "#fff", fontSize: 24, fontWeight: 'bold' },
+  logoutText: { color: '#e74c3c', fontSize: 16 },
+  toggleButton: { padding: 12, borderRadius: 8, width: '100%', alignItems: 'center', marginBottom: 20 },
+  toggleButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  formTitle: { color: "#fff", fontSize: 20, textAlign: 'center', marginBottom: 10 },
+  button: { backgroundColor: "#fff", alignItems: 'center', marginTop: 10, borderRadius: 8, padding: 12 },
+  buttonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
+  input: { backgroundColor: '#FFF', borderRadius: 8, padding: 10, fontSize: 16, marginBottom: 10 },
+  lista: { marginTop: 10 }
 });
